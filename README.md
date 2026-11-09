@@ -73,8 +73,8 @@ python3.12 -m venv .venv
 .venv/bin/streamlit run app/main.py
 ```
 
-Open http://127.0.0.1:8501. The pages are Dataset, Price Index and What Drives Price? (top bar). The maps load
-street tiles from CARTO, so they need an internet connection.
+Open http://127.0.0.1:8501. The sections are **Dataset**, **Food Map** (the eleven Delhi districts), **Price Index**
+and **What Drives Price?**. All maps use a plain white background with the district outlines, so they work offline.
 
 Rebuild everything in order:
 
@@ -93,6 +93,12 @@ PYTHONPATH=src .venv/bin/python -m pytest -q
 
 A Kaggle token is only needed to download the source again. Put it in `.env` as `KAGGLE_API_TOKEN`. That file is not committed.
 
+## Deliverable 2 — Food map
+
+A plain white map of the eleven revenue districts on the Delhi government district map. Click a district to colour it by restaurants per square kilometre and open its profile. North and South West have none. District outlines are OpenStreetMap, in `data/geo/delhi_districts.geojson`.
+
 ## Later deliverables
 
-Not in this commit: the food map (Deliverable 2) and raw-material price integration (commodity price sources such as data.gov.in and Agmarknet are still uncollected).
+Not built yet: a Home page, OpenStreetMap listings for thin districts (`scripts/fetch_osm_restaurants.py` has never
+completed), and raw-material price integration (commodity price sources such as data.gov.in and Agmarknet are still
+uncollected).

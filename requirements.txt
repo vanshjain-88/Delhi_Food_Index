@@ -12,3 +12,4 @@ scikit-learn>=1.4
 statsmodels>=0.14
 shap>=0.45
 pytest>=8.0
+shapely>=2.0
