@@ -108,3 +108,82 @@ Null stays null. The pipeline does not invent ratings, vote counts, coordinates,
 - Hauz Khas has one restaurant under that locality label, so that label cannot support a locality statistic.
 - `cuisine` on a menu row describes the restaurant, not the dish.
 - Locality latitude and longitude are restaurant averages, not official boundaries.
+
+## observed_addon_prices
+
+`data/processed/observed_addon_prices.parquet`. Built by `scripts/build_addon_prices.py`. One row per restaurant and dish whose name appears, with a positive price, in one of that restaurant's menu add-on groups.
+
+| Field | Type | Rule |
+|---|---|---|
+| restaurant_id | string | foreign key to restaurants |
+| normalized_dish_name | string | matched dish name (same normalization as menu_items) |
+| dish_id | string | first matching menu row |
+| dish_name, item_role, estimated_price | | copied from that menu row |
+| observed_addon_price | float | median rupee price across the add-on listings. **Observed** |
+| addon_price_min / addon_price_max | float | range across listings |
+| addon_listings | integer | number of add-on listings found |
+| addon_groups | string | add-on group names, ` \| ` joined |
+| price_source | string | `observed_addon` |
+
+## Deliverable 3 tables
+
+Built by `scripts/build_price_index.py`. Reliability is `reliable` (10+ restaurants), `low` (5–9) or `suppressed` (<5, index null).
+
+**gpi_locality** — one row per locality.
+
+| Field | Rule |
+|---|---|
+| locality_id, locality_name, latitude, longitude | as in localities |
+| restaurants | restaurants with a cost for two |
+| reliability | see above |
+| gpi, gpi_low, gpi_high | cuisine-adjusted index and 95% bootstrap interval |
+| gpi_unadjusted (+ _low, _high) | median cost for two ÷ Delhi median × 100 |
+| cuisine_mix_effect | gpi_unadjusted − gpi |
+| gpi_hedonic | regression index (robustness) |
+| addon_restaurants, addon_index | index from observed add-on prices; null below 5 restaurants |
+| median / p25 / p75_cost_for_two | observed rupees |
+| median_estimated_main, median_estimated_beverage | 0.35 and 0.15 × median cost for two. **Estimated** |
+| top_cuisine, top_cuisine_share, cuisine_groups | primary-cuisine mix |
+
+**gpi_cells** — one row per locality and cuisine token (29 tokens with 40+ Delhi restaurants): restaurants, delhi_restaurants, reliability, median_cost_for_two, delhi_median_cost_for_two, gpi, gpi_low, gpi_high.
+
+**gpi_restaurants** — one row per restaurant with a cost for two: primary_cuisine, cuisine_group (pooled benchmark group), cuisine_benchmark (Delhi median of that group), relative_price, estimated_main_price, estimated_beverage_price.
+
+## Deliverable 4 tables
+
+Built by `scripts/build_price_drivers.py`.
+
+**dish_selection** — every candidate canonical dish: restaurants, localities, menu_rows, p25_cost, p75_cost, iqr_ratio, selected, reason, modal_role, price_weight.
+
+**dish_observations** — one row per restaurant and selected dish.
+
+| Field | Rule |
+|---|---|
+| observation_id | `{restaurant_id}\|{canonical_dish}` |
+| canonical_dish, dish_label | canonical key and display name |
+| dish_id, dish_name, description, image_url | shortest-named matching menu row |
+| variants, variant_names | number and names of matching menu rows (sizes, styles) |
+| row_role, row_estimated_price | that row's own role and estimate |
+| modal_role, price_weight | most common role of the dish across Delhi and its weight |
+| dish_price_estimate | price_weight × cost_for_two. **Estimated**. The model outcome |
+| ING_\*, TECH_\*, DESC_\* | 0/1 explicit mentions in any matching row's name or description |
+| description_words, has_description, pieces | text descriptors |
+| restaurant fields | name, brand (chain key), locality, coordinates, cost_for_two, rating, rating_clean (0 → null), rating_count, veg_nonveg, cuisines, menu_items, description_share, image_share, is_chain |
+| predicted_price_cv | out-of-fold prediction of the best model for that dish. **Predicted** |
+| observed_addon_price | observed add-on price of the same dish at that restaurant, if any. **Observed** |
+
+**dish_features** — long table of every extraction: family (`ingredient`, `technique`, `descriptor`), feature, evidence (`name`, `description`, `canonical recipe`), confidence, source_type (`explicit` or `inferred`), source.
+
+**dish_ingredients** — plan schema: dish_id, ingredient_id, quantity (null), unit (null), confidence, source, plus observation_id, canonical_dish, source_type, evidence.
+
+**ingredients** — ingredient_id, canonical_name, category, aliases (the lexicon words).
+
+**price_driver_metrics** — per dish (and `ALL_DISHES`) and model: mae, rmse, r2 (rupees), r2_log, n, features, best, explained_by.
+
+**price_driver_families** — per dish: family, family_label, share of mean |SHAP|, model.
+
+**price_driver_features** — per dish and feature: mean_abs_shap, family, effect_pct_or_sign (percent gap for 0/1 features, ±1 for numeric), prevalence, binary.
+
+**price_driver_associations** — pooled OLS with dish fixed effects: coef, pct, pct_low, pct_high, p_value, rows_with_feature.
+
+**addon_price_model** — one row: rows, items, restaurants, elasticity (+ 95% CI), r2, rating_coef_pct, median_within_item_spearman. **addon_model_rows** holds the rows used.

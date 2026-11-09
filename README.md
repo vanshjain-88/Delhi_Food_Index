@@ -24,6 +24,47 @@ Cost for two is observed. Dish prices in the preview are estimates: a main is 35
 
 The all-India download was deleted after the Delhi filter was checked. Field definitions are in `DATA_DICTIONARY.md`.
 
+## Deliverable 3 — Gastronomic Price Index
+
+How expensive each locality is relative to Delhi, comparing each restaurant with Delhi restaurants of the same
+cuisine. 100 = Delhi benchmark.
+
+| | |
+|---|---|
+| Localities with an index | 47 of 81 (35 reliable, 12 low-sample, 34 suppressed) |
+| Cuisine × locality cells | 1,074 (109 reliable, 151 low-sample) |
+| Most expensive (reliable) | Khan Market 388, Lodhi Colony 239, Chanakyapuri 196 |
+| Least expensive (reliable) | Geeta Colony 59, Shadipur 69, Asaf Ali Road 69 |
+| Robustness | Spearman ρ 0.91 with a hedonic regression index, 0.59 with an index built from observed add-on prices |
+
+Files: `data/processed/gpi_locality.parquet`, `gpi_cells.parquet`, `gpi_restaurants.parquet`.
+Report with worked example: `reports/price_index_report.md`.
+
+## Deliverable 4 — What drives dish prices?
+
+Twenty dishes chosen by a coverage rule (150+ restaurants, 40+ localities): dal makhani, cold coffee, kadai
+paneer, shahi paneer, paneer tikka, French fries, chilli paneer, dal tadka, paneer butter masala, veg fried rice,
+veg manchurian, hakka noodles, chicken biryani, chilli chicken, gulab jamun, chicken tikka, butter chicken,
+veg biryani, veg momos, tandoori chicken. 5,434 restaurant–dish observations.
+
+- Rule-based ingredient, technique and descriptor extraction from names and descriptions
+  (`src/nlp/features.py`), about 92–95% precision on a manual audit (`reports/extraction_audit.md`).
+- Ridge, random forest and gradient boosting per dish, 5-fold cross-validation grouped by chain.
+  Best models cut MAE 10–28% against a median baseline. SHAP shares by factor family.
+- Pooled regression with dish fixed effects for "word on the menu → % price difference".
+- A check against **observed add-on prices**: 3,753 real item prices recovered from menu add-on groups.
+
+Main finding: within a dish, restaurant cuisine mix, rating and restaurant characteristics account for most of the
+model's explanation; ingredients and techniques named on the menu add little. Real add-on prices rise with cost for
+two with an elasticity of 0.36 (95% CI 0.26–0.45), not the 1.0 the estimate assumes, so estimated rupee gaps between
+cheap and expensive restaurants are exaggerated.
+
+Files: `data/processed/dish_observations.parquet`, `dish_features.parquet`, `dish_ingredients.parquet`,
+`ingredients.parquet`, `dish_selection.parquet`, `price_driver_*.parquet`, `observed_addon_prices.parquet`,
+`addon_price_model.parquet`. Report: `reports/price_drivers_report.md`.
+
+Raw-material prices are not integrated yet.
+
 ### Preview
 
 ```bash
@@ -32,14 +73,26 @@ python3.12 -m venv .venv
 .venv/bin/streamlit run app/main.py
 ```
 
-Open http://127.0.0.1:8501. Rebuild the processed tables with:
+Open http://127.0.0.1:8501. The pages are Dataset, Price Index and What Drives Price? (top bar). The maps load
+street tiles from CARTO, so they need an internet connection.
+
+Rebuild everything in order:
 
 ```bash
-.venv/bin/python scripts/build_delhi_dataset.py
+.venv/bin/python scripts/build_delhi_dataset.py   # Deliverable 1 tables
+.venv/bin/python scripts/build_addon_prices.py    # observed add-on prices
+.venv/bin/python scripts/build_price_index.py     # Deliverable 3 (seconds)
+.venv/bin/python scripts/build_price_drivers.py   # Deliverable 4 (about 2 minutes)
+```
+
+Tests (unit tests plus page smoke tests that click through every cuisine and dish):
+
+```bash
+PYTHONPATH=src .venv/bin/python -m pytest -q
 ```
 
 A Kaggle token is only needed to download the source again. Put it in `.env` as `KAGGLE_API_TOKEN`. That file is not committed.
 
 ## Later deliverables
 
-Not in this commit: the food map, the cuisine-adjusted price index, and the price-driver analysis.
+Not in this commit: the food map (Deliverable 2) and raw-material price integration (commodity price sources such as data.gov.in and Agmarknet are still uncollected).

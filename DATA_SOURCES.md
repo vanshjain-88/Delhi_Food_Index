@@ -14,3 +14,8 @@
 ## Not used in this phase
 
 OpenStreetMap, Overture Maps Places, data.gov.in commodity prices, and Agmarknet are part of the approved architecture and are not collected in the Phase 1 pilot.
+
+## Derived in this project (no new external source)
+
+- Observed add-on prices are read from the `modifier_groups` already inside the Kaggle snapshot's menu JSON. No new collection.
+- Map tiles in the app are loaded by the viewer's browser from CARTO (OpenStreetMap data). No map data is stored in the repository.
