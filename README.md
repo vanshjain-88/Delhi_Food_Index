@@ -32,7 +32,7 @@ python3.12 -m venv .venv
 .venv/bin/streamlit run app/main.py
 ```
 
-Open http://127.0.0.1:8501. Rebuild the processed tables with:
+Open http://127.0.0.1:8501. Use **Dataset** for the table and **Food Map** for the eleven Delhi districts. Rebuild the processed tables with:
 
 ```bash
 .venv/bin/python scripts/build_delhi_dataset.py
@@ -40,6 +40,10 @@ Open http://127.0.0.1:8501. Rebuild the processed tables with:
 
 A Kaggle token is only needed to download the source again. Put it in `.env` as `KAGGLE_API_TOKEN`. That file is not committed.
 
+## Deliverable 2 — Food map
+
+A plain white map of the eleven revenue districts on the Delhi government district map. Click a district to colour it by restaurants per square kilometre and open its profile. North and South West have none. District outlines are OpenStreetMap, in `data/geo/delhi_districts.geojson`.
+
 ## Later deliverables
 
-Not in this commit: the food map, the cuisine-adjusted price index, and the price-driver analysis.
+Not built yet: the cuisine-adjusted price index and the price-driver analysis.

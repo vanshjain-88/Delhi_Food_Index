@@ -7,3 +7,4 @@ six>=1.17
 streamlit>=1.40
 watchdog>=4.0
 plotly>=5.24
+shapely>=2.0
