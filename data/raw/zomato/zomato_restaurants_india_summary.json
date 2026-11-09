@@ -1,0 +1,325 @@
+{
+  "generated_at_utc": "2026-04-06T11:48:10.213435+00:00",
+  "source_file": "zomato_restaurants_india.jsonl",
+  "derived_files": {
+    "gzip": "zomato_restaurants_india.jsonl.gz",
+    "parquet": "zomato_restaurants_india.parquet",
+    "summary": "zomato_restaurants_india_summary.json"
+  },
+  "record_count": 57634,
+  "unique_restaurant_count": 57630,
+  "unique_city_count": 87,
+  "top_level_key_presence": {
+    "basic_info": 57634,
+    "city": 57634,
+    "contact": 57634,
+    "cuisine_string": 57634,
+    "cuisines": 57634,
+    "listing": 57634,
+    "locality": 57634,
+    "menu": 57634,
+    "name": 57634,
+    "order_details": 57634,
+    "order_url": 57634,
+    "res_id": 57634,
+    "restaurant_url": 57634
+  },
+  "top_cities": [
+    {
+      "city": "Vadodara",
+      "restaurants": 1704
+    },
+    {
+      "city": "Surat",
+      "restaurants": 1486
+    },
+    {
+      "city": "Lucknow",
+      "restaurants": 1470
+    },
+    {
+      "city": "Pune",
+      "restaurants": 1402
+    },
+    {
+      "city": "Mumbai",
+      "restaurants": 1394
+    },
+    {
+      "city": "Nagpur",
+      "restaurants": 1366
+    },
+    {
+      "city": "Delhi NCR",
+      "restaurants": 1352
+    },
+    {
+      "city": "Ahmedabad",
+      "restaurants": 1337
+    },
+    {
+      "city": "Kolkata",
+      "restaurants": 1334
+    },
+    {
+      "city": "Patna",
+      "restaurants": 1313
+    },
+    {
+      "city": "Jaipur",
+      "restaurants": 1289
+    },
+    {
+      "city": "Kanpur",
+      "restaurants": 1258
+    },
+    {
+      "city": "Ludhiana",
+      "restaurants": 1251
+    },
+    {
+      "city": "Indore",
+      "restaurants": 1249
+    },
+    {
+      "city": "Dehradun",
+      "restaurants": 1231
+    },
+    {
+      "city": "Chandigarh",
+      "restaurants": 1197
+    },
+    {
+      "city": "Varanasi",
+      "restaurants": 1128
+    },
+    {
+      "city": "Raipur",
+      "restaurants": 1071
+    },
+    {
+      "city": "Amritsar",
+      "restaurants": 1036
+    },
+    {
+      "city": "Guwahati",
+      "restaurants": 1009
+    },
+    {
+      "city": "Bhopal",
+      "restaurants": 993
+    },
+    {
+      "city": "Gorakhpur",
+      "restaurants": 944
+    },
+    {
+      "city": "Allahabad",
+      "restaurants": 935
+    },
+    {
+      "city": "Agra",
+      "restaurants": 927
+    },
+    {
+      "city": "Jalandhar",
+      "restaurants": 924
+    }
+  ],
+  "top_cuisines": [
+    {
+      "cuisine": "North Indian",
+      "restaurants": 22455
+    },
+    {
+      "cuisine": "Fast Food",
+      "restaurants": 18109
+    },
+    {
+      "cuisine": "Chinese",
+      "restaurants": 17313
+    },
+    {
+      "cuisine": "Beverages",
+      "restaurants": 14992
+    },
+    {
+      "cuisine": "Street Food",
+      "restaurants": 11655
+    },
+    {
+      "cuisine": "Desserts",
+      "restaurants": 11248
+    },
+    {
+      "cuisine": "Pizza",
+      "restaurants": 9268
+    },
+    {
+      "cuisine": "Biryani",
+      "restaurants": 9218
+    },
+    {
+      "cuisine": "Sandwich",
+      "restaurants": 7463
+    },
+    {
+      "cuisine": "Burger",
+      "restaurants": 7201
+    },
+    {
+      "cuisine": "South Indian",
+      "restaurants": 7071
+    },
+    {
+      "cuisine": "Shake",
+      "restaurants": 6512
+    },
+    {
+      "cuisine": "Bakery",
+      "restaurants": 5350
+    },
+    {
+      "cuisine": "Mughlai",
+      "restaurants": 4133
+    },
+    {
+      "cuisine": "Momos",
+      "restaurants": 4127
+    },
+    {
+      "cuisine": "Rolls",
+      "restaurants": 4020
+    },
+    {
+      "cuisine": "Ice Cream",
+      "restaurants": 3260
+    },
+    {
+      "cuisine": "Pasta",
+      "restaurants": 2831
+    },
+    {
+      "cuisine": "Coffee",
+      "restaurants": 2733
+    },
+    {
+      "cuisine": "Italian",
+      "restaurants": 2316
+    },
+    {
+      "cuisine": "Kebab",
+      "restaurants": 2062
+    },
+    {
+      "cuisine": "Seafood",
+      "restaurants": 1955
+    },
+    {
+      "cuisine": "Continental",
+      "restaurants": 1944
+    },
+    {
+      "cuisine": "Mithai",
+      "restaurants": 1915
+    },
+    {
+      "cuisine": "Tea",
+      "restaurants": 1711
+    },
+    {
+      "cuisine": "Healthy Food",
+      "restaurants": 1648
+    },
+    {
+      "cuisine": "Salad",
+      "restaurants": 1641
+    },
+    {
+      "cuisine": "Juices",
+      "restaurants": 1601
+    },
+    {
+      "cuisine": "Cafe",
+      "restaurants": 1557
+    },
+    {
+      "cuisine": "Wraps",
+      "restaurants": 1518
+    },
+    {
+      "cuisine": "Sichuan",
+      "restaurants": 1458
+    },
+    {
+      "cuisine": "Asian",
+      "restaurants": 1095
+    },
+    {
+      "cuisine": "Waffle",
+      "restaurants": 957
+    },
+    {
+      "cuisine": "Maharashtrian",
+      "restaurants": 899
+    },
+    {
+      "cuisine": "Shawarma",
+      "restaurants": 885
+    },
+    {
+      "cuisine": "Gujarati",
+      "restaurants": 838
+    },
+    {
+      "cuisine": "Cake",
+      "restaurants": 599
+    },
+    {
+      "cuisine": "Arabian",
+      "restaurants": 576
+    },
+    {
+      "cuisine": "Mexican",
+      "restaurants": 570
+    },
+    {
+      "cuisine": "American",
+      "restaurants": 540
+    }
+  ],
+  "delivery_rating_summary": {
+    "count": 57634,
+    "min": 0.0,
+    "max": 4.8,
+    "mean": 3.556
+  },
+  "delivery_time_minutes_summary": {
+    "count": 50562,
+    "min": 10,
+    "max": 140,
+    "mean": 33.31
+  },
+  "menu_summary": {
+    "total_menus": 478406,
+    "total_categories": 636496,
+    "total_menu_items": 4266039,
+    "total_modifier_groups": 317104,
+    "average_menus_per_restaurant": 8.301,
+    "average_categories_per_restaurant": 11.044,
+    "average_menu_items_per_restaurant": 74.019
+  },
+  "parquet_columns": [
+    "record_number",
+    "res_id",
+    "restaurant_name",
+    "city_name",
+    "locality_name",
+    "cuisine_string",
+    "delivery_rating",
+    "delivery_time_text",
+    "cost_for_two",
+    "json"
+  ],
+  "source_sha256": "71e9271ec31ad6a3207f2fdf6633316a83fcd7dbb1e1e2da7bc502079c2c3b81"
+}

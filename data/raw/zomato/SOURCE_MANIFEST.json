@@ -1,0 +1,14 @@
+{
+  "dataset": "archangel0x01/zomato-india-delivery-menus",
+  "downloaded_at": "2026-11-09T07:26:39.033092+00:00",
+  "kaggle_last_updated": null,
+  "kaggle_title": "Zomato India Delivery Menus",
+  "local_file": "delhi_restaurants.parquet",
+  "restaurants_in_source_download": 57634,
+  "restaurants_kept": 1351,
+  "localities_kept": 81,
+  "filter": "city_name = 'Delhi NCR' AND locality_name contains 'New Delhi'",
+  "excluded": "One Mohan Nagar, Ghaziabad row filed under Delhi NCR, plus every other state.",
+  "removed_file": "zomato_restaurants_india.parquet",
+  "removed_at": "2026-11-09T07:52:02.893768+00:00"
+}
