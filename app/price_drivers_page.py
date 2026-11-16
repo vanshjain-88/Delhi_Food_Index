@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from ui import CHART, DATA, district_layers, MUTED, RUST, TEAL, pretty_feature, pretty_token
+from ui import ACCENT, CHART, DATA, district_layers, GREY, MUTED, SECONDARY, pretty_feature, pretty_token
 
 FAMILY_ORDER = [
     "Restaurant cuisine", "Restaurant characteristics", "Rating", "Locality",
@@ -99,7 +99,7 @@ def render_price_drivers() -> None:
             lat="latitude",
             lon="longitude",
             color="dish_price_estimate",
-            color_continuous_scale=[[0, "#F3E4D7"], [1, RUST]],
+            color_continuous_scale=[[0, "#F3E4D7"], [1, ACCENT]],
             range_color=(geo["dish_price_estimate"].quantile(0.05), geo["dish_price_estimate"].quantile(0.95)),
             hover_name="name",
             custom_data=["dish_name", "locality_name", "dish_price_estimate", "cost_for_two"],
@@ -130,7 +130,7 @@ def render_price_drivers() -> None:
         else:
             bar = px.bar(by_loc, x="median", y="locality_name", orientation="h", text="size",
                          labels={"median": "Median estimated price (₹)", "locality_name": ""},
-                         color_discrete_sequence=[RUST])
+                         color_discrete_sequence=[ACCENT])
             bar.add_vline(x=d["dish_price_estimate"].median(), line_dash="dot", line_color=MUTED,
                           annotation_text="Delhi", annotation_font_color=MUTED)
             bar.update_traces(texttemplate="n=%{text}", textposition="outside", textfont_color=MUTED,
@@ -143,11 +143,11 @@ def render_price_drivers() -> None:
     # 3. Distribution.
     st.subheader("Price distribution")
     hist = px.histogram(d, x="dish_price_estimate", nbins=30, labels={"dish_price_estimate": "Estimated price (₹)"},
-                        color_discrete_sequence=[RUST])
+                        color_discrete_sequence=[ACCENT])
     hist.update_traces(marker_line_width=2, marker_line_color=CHART["paper_bgcolor"],
                        hovertemplate="₹%{x}: %{y} restaurants<extra></extra>")
     if len(observed):
-        hist.add_trace(go.Histogram(x=observed, nbinsx=20, name="Observed add-on price", marker_color=TEAL, opacity=0.8,
+        hist.add_trace(go.Histogram(x=observed, nbinsx=20, name="Observed add-on price", marker_color=SECONDARY, opacity=0.8,
                                     hovertemplate="₹%{x}: %{y} observed<extra></extra>"))
         hist.update_traces(selector={"type": "histogram"}, showlegend=True)
         hist.data[0].name = "Estimated price"
@@ -179,7 +179,7 @@ def render_price_drivers() -> None:
                 continue
             part["label"] = part["feature"].map(pretty_token)
             fig = px.bar(part, x="share", y="label", orientation="h", labels={"share": "Share of restaurants", "label": ""},
-                         color_discrete_sequence=[TEAL])
+                         color_discrete_sequence=[SECONDARY])
             fig.update_traces(hovertemplate="%{y}: %{x:.0%} of restaurants<extra></extra>")
             fig.update_layout(height=300, margin={"l": 10, "r": 10, "t": 10, "b": 10}, xaxis_tickformat=".0%", **CHART)
             st.plotly_chart(fig, width="stretch")
@@ -193,7 +193,7 @@ def render_price_drivers() -> None:
     fam_frame = fam_frame.sort_values("Share")
     left, right = st.columns([2, 3])
     with left:
-        fig = px.bar(fam_frame, x="Share", y="Factor", orientation="h", color_discrete_sequence=[RUST],
+        fig = px.bar(fam_frame, x="Share", y="Factor", orientation="h", color_discrete_sequence=[ACCENT],
                      labels={"Share": "Share of explained variation", "Factor": ""})
         fig.update_traces(hovertemplate="%{y}: %{x:.0%}<extra></extra>", texttemplate="%{x:.0%}", textposition="outside",
                           textfont_color=MUTED)
@@ -254,7 +254,7 @@ def render_price_drivers() -> None:
     assoc["significant"] = assoc["p_value"] < 0.05
     forest = go.Figure()
     forest.add_vline(x=0, line_color=MUTED, line_width=1)
-    for sig, color, name in ((True, RUST, "p < 0.05"), (False, "#A8A29E", "not significant")):
+    for sig, color, name in ((True, ACCENT, "p < 0.05"), (False, GREY, "not significant")):
         part = assoc[assoc["significant"] == sig]
         forest.add_trace(go.Scatter(
             x=part["pct"], y=part["Feature"], mode="markers", name=name,
@@ -281,12 +281,12 @@ def render_price_drivers() -> None:
     fig = px.scatter(rows, x="cost_for_two", y="observed_addon_price", log_x=True, log_y=True,
                      hover_name="dish_name", hover_data={"locality_name": True},
                      labels={"cost_for_two": "Restaurant cost for two (₹)", "observed_addon_price": "Observed item price (₹)"},
-                     color_discrete_sequence=[TEAL], opacity=0.55)
+                     color_discrete_sequence=[SECONDARY], opacity=0.55)
     xs = np.array([rows["cost_for_two"].min(), rows["cost_for_two"].max()])
     centre_x = np.exp(np.log(rows["cost_for_two"]).mean())
     centre_y = np.exp(np.log(rows["observed_addon_price"]).mean())
     fig.add_trace(go.Scatter(x=xs, y=centre_y * (xs / centre_x) ** addon["elasticity"], mode="lines",
-                             name=f"Fitted slope {addon['elasticity']:.2f}", line={"color": RUST, "width": 2}))
+                             name=f"Fitted slope {addon['elasticity']:.2f}", line={"color": ACCENT, "width": 2}))
     fig.add_trace(go.Scatter(x=xs, y=centre_y * (xs / centre_x), mode="lines", name="Slope the estimate assumes (1.0)",
                              line={"color": MUTED, "width": 2, "dash": "dot"}))
     fig.update_traces(selector={"mode": "markers"}, marker={"size": 8})

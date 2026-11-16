@@ -81,6 +81,41 @@ Modifier groups (add-ons such as extra cheese) are not menu items. The same item
 - A dish id adds the item id from that same source.
 - If a later source has no item id, the dish id may add the normalized name and category.
 
+## Overture places
+
+`data/processed/overture_places.parquet` is a coverage layer, separate from the Zomato tables. One row per place listed by Overture Maps (release in `release`). It has no rating, cost, price or menu, and none are imputed.
+
+| Column | Meaning |
+|---|---|
+| `place_id` | Overture id |
+| `name` | Primary name |
+| `kind` | Overture base category (restaurant, casual_eatery, fast_food_restaurant, cafe, coffee_shop) |
+| `category` | Detailed Overture category, for example `indian_restaurant` |
+| `label` | Readable type used in the app. "Restaurant (type not listed)" when Overture gives only "restaurant" |
+| `confidence` | Overture's 0 to 1 estimate that the place exists. The table keeps 0.5 and above |
+| `latitude`, `longitude` | WGS84 |
+| `postcode` | Where Overture has one |
+| `district` | One of the eleven districts, by point in polygon |
+| `source_datasets`, `source_licenses` | Which datasets Overture drew the record from, and their licenses |
+| `source`, `release` | `overture_maps` and the release date |
+
+It is never merged with `restaurants` on name. The Food Map uses it for counts, density and types; ratings, costs and menus come from the Zomato tables.
+
+## Restaurants 2021 (gap fill)
+
+`data/processed/restaurants_2021.parquet` holds restaurants from an older listing (see `DATA_SOURCES.md`), one row per restaurant inside the eleven districts (1,188). Columns are those of `restaurants`, plus:
+
+| Column | Meaning |
+|---|---|
+| `district` | One of the eleven districts, by point in polygon |
+| `price_year` | 2021. Rupees are 2021 rupees |
+| `fills_gap` | True when the district has fewer than 10 restaurants in the 2026 snapshot. Only these rows feed district numbers and the index tables; the rest only build the 2021 Delhi benchmark |
+| `rating`, `rating_count` | Delivery rating and its count. Null where there is no rating, never filled |
+| `veg_nonveg`, `dish_price_blocked` | Always null: the file has no menus |
+| `restaurant_id` | `zomato2021:` plus the Zomato URL slug. Never equal to a 2026 id |
+
+It is never merged with `restaurants` on name. A district uses one year only.
+
 ## Canonical forms
 
 - Names: keep `name` / `dish_name`. `normalized_name` is lowercase ASCII letters, digits, and single spaces, with `&` read as `and`.
@@ -129,7 +164,7 @@ Null stays null. The pipeline does not invent ratings, vote counts, coordinates,
 
 Built by `scripts/build_price_index.py`. Reliability is `reliable` (10+ restaurants), `low` (5–9) or `suppressed` (<5, index null).
 
-**gpi_locality** — one row per locality.
+**gpi_locality** — one row per locality. `price_year` is 2026, or 2021 for localities in the four districts the 2026 snapshot barely covers (rupees are then 2021 rupees, and the index is relative to the 2021 Delhi median). A label used in two districts is split, for example `Rohini (North)`.
 
 | Field | Rule |
 |---|---|
@@ -145,9 +180,9 @@ Built by `scripts/build_price_index.py`. Reliability is `reliable` (10+ restaura
 | median_estimated_main, median_estimated_beverage | 0.35 and 0.15 × median cost for two. **Estimated** |
 | top_cuisine, top_cuisine_share, cuisine_groups | primary-cuisine mix |
 
-**gpi_cells** — one row per locality and cuisine token (29 tokens with 40+ Delhi restaurants): restaurants, delhi_restaurants, reliability, median_cost_for_two, delhi_median_cost_for_two, gpi, gpi_low, gpi_high.
+**gpi_cells** — one row per locality and cuisine token (29 tokens with 40+ Delhi restaurants), with `price_year` as above: restaurants, delhi_restaurants, reliability, median_cost_for_two, delhi_median_cost_for_two, gpi, gpi_low, gpi_high.
 
-**gpi_restaurants** — one row per restaurant with a cost for two: primary_cuisine, cuisine_group (pooled benchmark group), cuisine_benchmark (Delhi median of that group), relative_price, estimated_main_price, estimated_beverage_price.
+**gpi_restaurants** — one row per restaurant with a cost for two (2026, or 2021 in the filled districts; `price_year` says which): primary_cuisine, cuisine_group (pooled benchmark group), cuisine_benchmark (Delhi median of that group), relative_price, estimated_main_price, estimated_beverage_price.
 
 ## Deliverable 4 tables
 

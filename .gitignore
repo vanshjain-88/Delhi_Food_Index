@@ -7,3 +7,6 @@ __pycache__/
 # Credentials. Never commit.
 .env
 kaggle.json
+
+# Raw 2021 restaurant file carries phone numbers. The processed table and manifest are committed.
+data/raw/zomato_2021/*.csv

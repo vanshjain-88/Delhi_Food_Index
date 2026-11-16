@@ -8,7 +8,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from ui import CHART, DATA, district_layers, DIVERGING, MUTED, RUST, TEAL, pretty_token
+from ingestion.gap_fill import CURRENT_YEAR
+from ui import ACCENT, CHART, DATA, delhi_bounds, district_layers, DIVERGING, GREY, map_view, MUTED, SECONDARY, pretty_token
 
 MEASURES = {
     "Cost for two (observed)": ("cost_for_two", 1.0),
@@ -47,6 +48,10 @@ METHOD = """
 - **Intervals**: 2,000 bootstrap resamples of restaurants.
 - **Why one index for all price columns**: estimated main = 35% and drink = 15% of cost for two, so the
   ratio is identical. Rupee levels differ and are shown.
+- **Two price years**: North, South West, South and North East have almost no restaurants in the 2026
+  snapshot, so their localities use a 2021 listing. Each restaurant is compared with the Delhi median of its own
+  year, so the index is comparable across years; rupee amounts are not (2021 rupees are lower). A district never
+  mixes the two. The 2021 listing has no menus and only well-rated restaurants.
 - **Limits**: cost for two is rounded to ₹50/₹100, so medians tie; delivery menus only; locality labels are
   Zomato's, not official boundaries. Full report: `reports/price_index_report.md`.
 """
@@ -54,7 +59,9 @@ METHOD = """
 
 def render_price_index() -> None:
     overall, cells, restaurants = load()
-    delhi_cost = float(restaurants["cost_for_two"].median())
+    current = restaurants[restaurants["price_year"] == CURRENT_YEAR]
+    delhi_cost = float(current["cost_for_two"].median())
+    older = sorted(overall.loc[overall["price_year"] != CURRENT_YEAR, "locality_name"])
 
     st.title("Gastronomic Price Index")
     st.caption(
@@ -62,14 +69,15 @@ def render_price_index() -> None:
         "of the same cuisine. 100 = Delhi benchmark, 120 = 20% above, 80 = 20% below. Unit: the restaurant."
     )
 
-    controls = st.columns([2, 2, 1.4, 1.4])
+    controls = st.columns([2.2, 2.2, 1.5, 1.5], vertical_alignment="bottom")
     cuisine_options = [OVERALL] + sorted(cells["cuisine"].unique(), key=pretty_token)
     cuisine = controls[0].selectbox("Cuisine", cuisine_options, format_func=lambda c: c if c == OVERALL else pretty_token(c))
     measure = controls[1].selectbox("Show rupee levels as", list(MEASURES), help=(
         "The index is the same for all three: estimated main and drink prices are fixed shares of cost for two, "
         "and the share cancels in the ratio. Only the rupee columns change."))
-    show_low = controls[2].toggle("Include low-sample", value=True, help="Localities or cells with 5–9 restaurants.")
-    adjusted = controls[3].toggle("Cuisine-adjusted", value=True, disabled=cuisine != OVERALL,
+    show_low = controls[2].toggle("Include low-sample", value=True, key="gpi_low_sample",
+                                  help="Localities or cells with 5–9 restaurants.")
+    adjusted = controls[3].toggle("Cuisine-adjusted", value=True, disabled=cuisine != OVERALL, key="gpi_adjusted",
                                   help="Off shows the raw index: locality median ÷ Delhi median, ignoring cuisine mix.")
     column, share = MEASURES[measure]
 
@@ -90,7 +98,8 @@ def render_price_index() -> None:
         view["low"] = view["gpi_low"]
         view["high"] = view["gpi_high"]
         view["median_level"] = share * view["median_cost_for_two"]
-        benchmark_level = share * float(view["delhi_median_cost_for_two"].iloc[0]) if len(view) else np.nan
+        now = view[view["price_year"] == CURRENT_YEAR]
+        benchmark_level = share * float(now["delhi_median_cost_for_two"].iloc[0]) if len(now) else np.nan
 
     allowed = {"reliable", "low"} if show_low else {"reliable"}
     shown = view[view["reliability"].isin(allowed) & view["index"].notna()].copy()
@@ -98,7 +107,9 @@ def render_price_index() -> None:
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Localities shown", f"{len(shown)}", help=f"{suppressed} suppressed (fewer than 5 restaurants).")
-    m2.metric(f"Delhi benchmark · {measure.split(' (')[0].lower()}", f"₹{benchmark_level:,.0f}")
+    m2.metric(f"Delhi benchmark · {measure.split(' (')[0].lower()}", f"₹{benchmark_level:,.0f}",
+              help=("2026 median. Localities marked 2021 in the table use 2021 prices and are compared with the "
+                    "Delhi median of 2021, so their index is comparable but their rupee amounts are not.") if older else None)
     if len(shown):
         reliable = shown[shown["reliability"] == "reliable"]
         pool = reliable if len(reliable) else shown
@@ -115,36 +126,67 @@ def render_price_index() -> None:
     lo, hi = _clip_range(shown["index"])
     shown["log_index"] = np.log(shown["index"].clip(lo, hi) / 100)
     shown["label"] = shown["reliability"].map({"reliable": "", "low": " (low sample)"})
+    shown["prices"] = shown["price_year"].astype(str)
     shown["ci"] = shown.apply(
         lambda r: f"{r['low']:.0f}–{r['high']:.0f}" if pd.notna(r["low"]) else "n/a", axis=1
     )
 
+    # Localities without an index (too few restaurants, or hidden by the low-sample toggle) stay on the map as grey
+    # dots, so the map shows where the data is thin instead of silently dropping it.
+    hidden = view[~view.index.isin(shown.index) & view["latitude"].notna()].copy()
+
     map_col, table_col = st.columns([3, 2])
     with map_col:
-        st.subheader("Map")
+        head = st.columns([1, 1.7], vertical_alignment="center")
+        head[0].subheader("Map")
+        view_mode = head[1].segmented_control(
+            "Map view", ["All Delhi", "Zoom to data"], default="All Delhi", required=True,
+            label_visibility="collapsed", key="gpi_map_view",
+        )
+        if view_mode == "All Delhi":
+            frame = map_view(delhi_bounds(), width_px=420, height_px=560)
+            size_max = 20
+        else:
+            points = pd.concat([shown[["latitude", "longitude"]], hidden[["latitude", "longitude"]]])
+            frame = map_view(
+                (points["longitude"].min(), points["latitude"].min(), points["longitude"].max(), points["latitude"].max()),
+                width_px=420, height_px=560, pad=1.5,
+            )
+            size_max = 32
         figure = px.scatter_map(
             shown,
             lat="latitude",
             lon="longitude",
             color="log_index",
             size="restaurants",
-            size_max=34,
+            size_max=size_max,
             color_continuous_scale=DIVERGING,
             range_color=(np.log(lo / 100), np.log(hi / 100)),
             hover_name="locality_name",
-            custom_data=["index", "ci", "restaurants", "median_level", "reliability"],
-            zoom=10.6,
-            center={"lat": 28.625, "lon": 77.21},
+            custom_data=["index", "ci", "restaurants", "median_level", "reliability", "prices"],
+            zoom=frame["zoom"],
+            center=frame["center"],
             map_style="white-bg",
             height=560,
         )
         figure.update_traces(
             hovertemplate=(
                 "<b>%{hovertext}</b><br>GPI %{customdata[0]:.0f} (95% CI %{customdata[1]})<br>"
-                "Restaurants %{customdata[2]} · %{customdata[4]}<br>Median ₹%{customdata[3]:,.0f}<extra></extra>"
+                "Restaurants %{customdata[2]} · %{customdata[4]}<br>Median ₹%{customdata[3]:,.0f} (%{customdata[5]} prices)<extra></extra>"
             ),
             marker={"opacity": 0.85},
         )
+        if not hidden.empty:
+            grey = go.Scattermap(
+                lat=hidden["latitude"], lon=hidden["longitude"], mode="markers",
+                marker={"size": 8, "color": GREY, "opacity": 0.75},
+                text=hidden["locality_name"], customdata=hidden[["restaurants", "reliability"]],
+                hovertemplate="<b>%{text}</b><br>No index shown: %{customdata[0]} restaurants "
+                              "(%{customdata[1]})<extra></extra>",
+                showlegend=False,
+            )
+            figure.add_trace(grey)
+            figure.data = figure.data[-1:] + figure.data[:-1]  # draw grey dots underneath the coloured ones
         ticks = [t for t in (25, 50, 67, 80, 100, 125, 150, 200, 300, 400) if lo <= t <= hi]
         figure.update_layout(
             margin={"l": 0, "r": 0, "t": 0, "b": 0},
@@ -153,17 +195,23 @@ def render_price_index() -> None:
             paper_bgcolor=CHART["paper_bgcolor"],
         )
         st.plotly_chart(figure, width="stretch")
-        st.caption("Points are mean restaurant coordinates for each Zomato locality label, sized by restaurant count, "
-                   "over the Food Map's district outlines. Localities have no official boundaries, so none are drawn. "
-                   "Color is on a log scale: 50 and 200 are equally far from 100.")
+        st.caption(
+            f"Coloured dots have an index. The {len(hidden)} grey dots are localities with too few restaurants for one. "
+"Localities in North, South West, South and North East use 2021 prices, because the 2026 snapshot has too few "
+            "restaurants there; each locality is compared with the Delhi median of its own year, so the index is "
+            "comparable but the rupee amounts are not. Dots sit at the mean restaurant position for each locality label "
+            "and are sized by restaurant count. Localities have no official boundaries, so none are drawn. Colour is on "
+            "a log scale: 50 and 200 are equally far from 100."
+        )
 
     with table_col:
         st.subheader("Locality comparison")
         table = shown.sort_values("index", ascending=False)[
-            ["locality_name", "index", "ci", "restaurants", "reliability", "median_level"]
+            ["locality_name", "index", "ci", "restaurants", "reliability", "median_level", "prices"]
         ].rename(columns={
             "locality_name": "Locality", "index": "GPI", "ci": "95% CI", "restaurants": "Restaurants",
             "reliability": "Sample", "median_level": f"Median ₹ ({measure.split(' (')[0].lower()})",
+            "prices": "Prices",
         })
         st.dataframe(
             table,
@@ -172,17 +220,24 @@ def render_price_index() -> None:
             height=560,
             column_config={
                 "GPI": st.column_config.ProgressColumn(format="%.0f", min_value=0, max_value=float(max(200, table["GPI"].max()))),
-                table.columns[-1]: st.column_config.NumberColumn(format="₹%.0f"),
+                table.columns[-2]: st.column_config.NumberColumn(format="₹%.0f"),
+                "Prices": st.column_config.TextColumn(width="small", help="Year of the prices behind the row."),
             },
         )
 
     st.subheader("Cuisine × locality")
     st.caption("GPI for each cuisine within each locality (plan formula: local median ÷ Delhi median × 100). "
-               "Blank = fewer than 5 restaurants. Localities with at least 10 priced restaurants; the 12 most common cuisines.")
-    heat_localities = overall[overall["reliability"] == "reliable"].sort_values("gpi", ascending=False)["locality_name"]
-    top_cuisines = (
-        cells[cells["reliability"] != "suppressed"].groupby("cuisine").size().sort_values(ascending=False).head(12).index
+               "Blank = fewer than 5 restaurants of that cuisine. Rows are the localities in the table above, "
+               "columns are the cuisines with the most localities that have an index.")
+    ranked_cuisines = (
+        cells[cells["reliability"] != "suppressed"].groupby("cuisine").size().sort_values(ascending=False).index
     )
+    n_cuisines = st.slider("Cuisines shown", min_value=4, max_value=len(ranked_cuisines),
+                           value=min(12, len(ranked_cuisines)), key="gpi_heat_cuisines")
+    heat_localities = (
+        overall[overall["reliability"].isin(allowed) & overall["gpi"].notna()].sort_values("gpi", ascending=False)["locality_name"]
+    )
+    top_cuisines = ranked_cuisines[:n_cuisines]
     heat = cells[cells["cuisine"].isin(top_cuisines) & cells["locality_name"].isin(heat_localities)]
     if not show_low:
         heat = heat[heat["reliability"] == "reliable"]
@@ -235,7 +290,7 @@ def render_price_index() -> None:
             category_orders={"locality_name": order},
             hover_data={"name": True, "primary_cuisine": True, column: ":,.0f", "locality_name": False},
             labels={column: f"{measure} (₹, log scale)", "locality_name": ""},
-            color_discrete_sequence=[RUST],
+            color_discrete_sequence=[ACCENT],
             log_x=True,
         )
         box.add_vline(x=benchmark_level, line_dash="dot", line_color=MUTED,
@@ -258,7 +313,7 @@ def render_price_index() -> None:
             data = checks.dropna(subset=["gpi", other])
             rho = data[["gpi", other]].corr(method="spearman").iloc[0, 1] if len(data) > 2 else np.nan
             fig = px.scatter(data, x="gpi", y=other, hover_name="locality_name", log_x=True, log_y=True,
-                             labels={"gpi": "Cuisine-adjusted GPI", other: label}, color_discrete_sequence=[TEAL])
+                             labels={"gpi": "Cuisine-adjusted GPI", other: label}, color_discrete_sequence=[SECONDARY])
             fig.add_shape(type="line", x0=data["gpi"].min(), y0=data["gpi"].min(), x1=data["gpi"].max(),
                           y1=data["gpi"].max(), line={"dash": "dot", "color": MUTED, "width": 1})
             fig.update_traces(marker={"size": 9, "line": {"width": 2, "color": CHART["paper_bgcolor"]}})

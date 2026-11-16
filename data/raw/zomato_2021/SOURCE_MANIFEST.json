@@ -1,0 +1,28 @@
+{
+  "dataset": "aestheteaman01/zomato-restaurants-in-delhi-ncr",
+  "url": "https://www.kaggle.com/datasets/aestheteaman01/zomato-restaurants-in-delhi-ncr",
+  "license": "CC0-1.0",
+  "kaggle_last_updated": "2021-08-30",
+  "snapshot_year": 2021,
+  "rows_in_file": 1965,
+  "rows_in_delhi_districts": 1188,
+  "districts_filled": [
+    "North",
+    "South West",
+    "South",
+    "North East"
+  ],
+  "not_committed": "DelhiNCR Restaurants.csv (carries restaurant phone numbers)",
+  "fields_used": [
+    "Restaurant_Name",
+    "Category",
+    "Pricing_for_2",
+    "Locality",
+    "Delivery_Rating",
+    "Delivery_Rating_Count",
+    "Website",
+    "Address",
+    "Latitude",
+    "Longitude"
+  ]
+}

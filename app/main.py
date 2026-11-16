@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import streamlit as st
 
 from dataset_page import render_dataset
+from home_page import render_home
 from map_page import render_map
 from price_drivers_page import render_price_drivers
 from price_index_page import render_price_index
@@ -23,6 +24,7 @@ st.set_page_config(
 )
 apply_theme()
 
+HOME = "Home"
 SECTIONS = {
     "Dataset": render_dataset,
     "Food Map": render_map,
@@ -30,12 +32,32 @@ SECTIONS = {
     "What Drives Price?": render_price_drivers,
 }
 
-st.markdown("**Delhi Gastronomic Intelligence**")
-section = st.segmented_control(
-    "Section",
-    list(SECTIONS),
-    default="Dataset",
-    required=True,
-    label_visibility="collapsed",
-)
-SECTIONS.get(section, render_dataset)()
+
+def go(page: str) -> None:
+    """Button and switcher callback: runs before the next script run, so the new page renders immediately."""
+    st.session_state["page"] = page
+
+
+def _switched() -> None:
+    go(st.session_state["section_switch"])
+
+
+page = st.session_state.get("page", HOME)
+if page not in SECTIONS:
+    page = HOME
+
+if page == HOME:
+    render_home(go)
+else:
+    back, switch = st.columns([1, 5], vertical_alignment="center")
+    back.button("← Home", key="back_home", on_click=go, args=(HOME,))
+    switch.segmented_control(
+        "Section",
+        list(SECTIONS),
+        default=page,
+        required=True,
+        label_visibility="collapsed",
+        key="section_switch",
+        on_change=_switched,
+    )
+    SECTIONS[page]()

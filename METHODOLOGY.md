@@ -91,17 +91,33 @@ Raw:      GPI_raw[l] = median cost for two in l / Delhi median × 100
   fixed. Cell and raw intervals resample both the locality and Delhi.
 - Outliers are not trimmed. The median limits their pull, and ₹4,000–₹8,000 costs for two are real fine dining.
 
+### Two price years
+
+North, South West, South and North East have fewer than 10 restaurants in the 2026 snapshot. Their localities use
+a 2021 listing instead (`src/ingestion/gap_fill.py`, `scripts/build_gap_fill.py`).
+
+- A district uses one year only on the Food Map. In the index tables a 2026 locality keeps all its restaurants, because
+  localities are Zomato labels, not districts (5 stray 2026 restaurants sit in the four districts, under the labels
+  Safdarjung and Shastri Park). The 2026 benchmarks still use every 2026 restaurant, so no 2026 number changes.
+- Every 2021 restaurant is compared with the Delhi median of the **2021** listing (all 1,188 of its Delhi
+  restaurants), never with a 2026 median. Index values are therefore comparable across the two years. Rupee levels
+  are not, and the app marks the year next to them.
+- Same-restaurant check: on 106 restaurants in both files (matched on the Zomato URL), the 2026 cost for two is a
+  median 17% higher than 2021's. Pooling the raw rupees would have made the filled districts look cheaper than they are.
+- The 2021 listing has only restaurants with a dining rating of 3.9 or more, so it leans toward well-liked
+  places, and it has no menus. Dish prices and Deliverable 4 stay 2026-only.
+
 ### Robustness
 
-- Hedonic index: OLS of log cost for two on locality and primary-cuisine dummies. Spearman ρ = 0.91 with the
-  overall GPI across the 47 shown localities.
+- Hedonic index: OLS of log cost for two on locality and primary-cuisine dummies, run separately for each year.
+  Spearman ρ = 0.90 with the overall GPI across the 66 shown localities.
 - Add-on index: each observed add-on price divided by that item's Delhi median (items at 8+ restaurants),
   median per restaurant, median per locality (5+ restaurants). Spearman ρ = 0.59 across 14 localities.
 
 ### Limits
 
-Cost for two is rounded, so medians tie and many indices land on round numbers. Delivery menus only. Locality
-labels are Zomato's; map points are mean restaurant coordinates, not boundaries.
+Cost for two is rounded, so medians tie and many indices land on round numbers. The 2026 snapshot is delivery
+menus only. Locality labels are Zomato's; map points are mean restaurant coordinates, not boundaries.
 
 ## Deliverable 4 — What drives dish prices?
 

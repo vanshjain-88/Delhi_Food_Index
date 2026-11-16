@@ -10,12 +10,17 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "processed"
 
-INK = "#1C1917"
-MUTED = "#78716C"
-SURFACE = "#FFFBF5"
-RUST = "#9A3412"
-TEAL = "#1F4E46"
-NEUTRAL = "#E7E2DA"
+# Cream and terracotta theme.
+INK = "#1C1917"        # text
+MUTED = "#78716C"      # captions, axis text
+SURFACE = "#FFFBF5"    # page background
+PANEL = "#F6EDE4"      # sidebar, inputs, table headers
+BORDER = "#E7E2DA"     # card and divider lines
+ACCENT = "#9A3412"     # terracotta: buttons, metrics, bars
+SECONDARY = "#1F4E46"  # green, second series next to ACCENT
+NEUTRAL = "#E7E2DA"    # midpoint of the diverging scale
+CHEAP = "#1F4E46"      # "cheaper than Delhi" end of the diverging scale
+GREY = "#A8A29E"       # missing or suppressed
 
 CHART = {
     "template": "plotly_white",
@@ -25,7 +30,7 @@ CHART = {
 }
 
 # Diverging scale for indices around 100: green = cheaper than Delhi, terracotta = dearer.
-DIVERGING = [[0.0, TEAL], [0.5, NEUTRAL], [1.0, RUST]]
+DIVERGING = [[0.0, CHEAP], [0.5, NEUTRAL], [1.0, ACCENT]]
 
 
 def apply_theme() -> None:
@@ -38,6 +43,18 @@ def apply_theme() -> None:
         }
         [data-testid="stSidebar"] { background: #F6EDE4; }
         [data-testid="stMetricValue"] { color: #9A3412; }
+        /* Home page cards. */
+        [class*="st-key-card_"] {
+            background: #FFFFFF;
+            border: 1px solid #E7E2DA;
+            border-radius: 14px;
+            padding: 1.1rem 1.25rem 1.2rem;
+        }
+        [class*="st-key-card_"] h4 { margin: 0.1rem 0 0.35rem; padding: 0; }
+        /* Cards in one row share the height of the tallest. */
+        [data-testid="stColumn"]:has([class*="st-key-card_"]) > [data-testid="stVerticalBlock"] { height: 100%; }
+        [data-testid="stColumn"]:has([class*="st-key-card_"]) [data-testid="stLayoutWrapper"] { flex: 1 1 auto; }
+        [class*="st-key-card_"] { height: 100%; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -106,6 +123,66 @@ def load_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         how="left",
     )
     return restaurants, show.rename(columns={"name": "restaurant_name"}), localities
+
+
+@st.cache_data(show_spinner=False)
+def load_gap_fill() -> pd.DataFrame:
+    """Older restaurant listing (ratings and cost for two, no menus) for districts the 2026 snapshot barely covers.
+
+    Empty if scripts/build_gap_fill.py has not been run, so the app still starts without it.
+    """
+    path = DATA / "restaurants_2021.parquet"
+    return pd.read_parquet(path) if path.exists() else pd.DataFrame()
+
+
+LISTING_COLUMNS = ["place_id", "name", "kind", "category", "label", "confidence", "latitude", "longitude",
+                   "district", "source_datasets", "release"]
+
+
+@st.cache_data(show_spinner=False)
+def load_listings() -> pd.DataFrame:
+    """Overture Maps restaurant, cafe and eatery listings (names and locations only, no ratings or prices).
+
+    Empty if scripts/build_overture_places.py has not been run, so the app still starts without it.
+    """
+    path = DATA / "overture_places.parquet"
+    if not path.exists():
+        return pd.DataFrame(columns=LISTING_COLUMNS)
+    return pd.read_parquet(path)
+
+
+@st.cache_data(show_spinner=False)
+def delhi_bounds() -> tuple[float, float, float, float]:
+    """(min lon, min lat, max lon, max lat) of the eleven districts."""
+    from map.districts import load_districts
+
+    lons: list[float] = []
+    lats: list[float] = []
+
+    def walk(node) -> None:
+        if isinstance(node[0], (int, float)):
+            lons.append(node[0])
+            lats.append(node[1])
+        else:
+            for child in node:
+                walk(child)
+
+    for feature in load_districts()["features"]:
+        walk(feature["geometry"]["coordinates"])
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def map_view(bounds: tuple[float, float, float, float], width_px: int = 640, height_px: int = 560,
+             pad: float = 1.12) -> dict:
+    """Centre and zoom that fit a lon/lat box inside a map of the given pixel size."""
+    from math import cos, log2, radians
+
+    west, south, east, north = bounds
+    mid_lat = (south + north) / 2
+    lon_span = max(east - west, 1e-6) * pad
+    lat_span = max(north - south, 1e-6) * pad / cos(radians(mid_lat))
+    zoom = min(log2(width_px * 360 / (512 * lon_span)), log2(height_px * 360 / (512 * lat_span)))
+    return {"center": {"lat": mid_lat, "lon": (west + east) / 2}, "zoom": round(zoom, 2)}
 
 
 @st.cache_data(show_spinner=False)

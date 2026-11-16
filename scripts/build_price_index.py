@@ -14,6 +14,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from ingestion.gap_fill import CURRENT_YEAR, SNAPSHOT_YEAR, same_restaurant_costs, unique_localities  # noqa: E402
+from map.districts import assign_district  # noqa: E402
 from pricing.gpi import (  # noqa: E402
     MIN_CUISINE_RESTAURANTS,
     MIN_RELIABLE,
@@ -26,6 +28,12 @@ from pricing.gpi import (  # noqa: E402
 )
 
 PROCESSED = ROOT / "data" / "processed"
+GAP_FILL = PROCESSED / "restaurants_2021.parquet"
+PRICED_COLUMNS = [
+    "restaurant_id", "name", "locality_id", "locality_name", "latitude", "longitude",
+    "cost_for_two", "rating", "primary_cuisine", "cuisine_group", "canonical_cuisines",
+    "cuisine_benchmark", "relative_price",
+]
 REPORTS = ROOT / "reports"
 # Cuisine tokens need this many Delhi restaurants to get locality cells.
 MIN_CELL_CUISINE = 40
@@ -66,21 +74,47 @@ def _table(frame: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def gap_fill_tables(
+    listing: pd.DataFrame, gaps: list[str], current_names: set[str], cell_cuisines: list[str]
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Index tables for the districts the 2026 snapshot barely covers, from the 2021 listing.
+
+    Every 2021 restaurant is compared with the Delhi median of the 2021 listing, not of 2026, so the index is
+    comparable with the 2026 one even though 2021 rupees are lower. Only localities inside the filled districts
+    are returned; the other 2021 restaurants only build the benchmark.
+    """
+    listing = unique_localities(listing.drop(columns="fills_gap"), current_names)
+    listing = add_cuisine_group(listing)
+
+    place = (
+        listing.groupby("locality_id")
+        .agg(locality_name=("locality_name", "first"), district=("district", "first"),
+             latitude=("latitude", "mean"), longitude=("longitude", "mean"))
+        .reset_index()
+    )
+    wanted = set(place.loc[place["district"].isin(gaps), "locality_id"])
+
+    priced = relative_prices(listing)[PRICED_COLUMNS]
+    priced = priced[priced["locality_id"].isin(wanted)].copy()
+
+    overall = locality_index(listing)
+    overall = overall.merge(hedonic_index(listing), on="locality_name", how="left")
+    overall.loc[overall["reliability"] == "suppressed", "gpi_hedonic"] = np.nan
+    overall = overall.merge(place[["locality_id", "latitude", "longitude"]], on="locality_id", how="left")
+    overall = overall[overall["locality_id"].isin(wanted)].copy()
+
+    cells = cuisine_cells(listing, cuisines=cell_cuisines)
+    cells = cells[cells["locality_id"].isin(wanted)].copy()
+    return priced, overall, cells
+
+
 def main() -> None:
     restaurants = pd.read_parquet(PROCESSED / "restaurants.parquet")
     localities = pd.read_parquet(PROCESSED / "localities.parquet")
     restaurants = add_cuisine_group(restaurants)
 
     priced = relative_prices(restaurants)
-    keep = [
-        "restaurant_id", "name", "locality_id", "locality_name", "latitude", "longitude",
-        "cost_for_two", "rating", "primary_cuisine", "cuisine_group", "canonical_cuisines",
-        "cuisine_benchmark", "relative_price",
-    ]
-    priced = priced[keep].copy()
-    priced["estimated_main_price"] = (0.35 * priced["cost_for_two"]).round(2)
-    priced["estimated_beverage_price"] = (0.15 * priced["cost_for_two"]).round(2)
-    priced.to_parquet(PROCESSED / "gpi_restaurants.parquet", index=False)
+    priced = priced[PRICED_COLUMNS].copy()
 
     overall = locality_index(restaurants)
     overall = overall.merge(hedonic_index(restaurants), on="locality_name", how="left")
@@ -88,9 +122,6 @@ def main() -> None:
     addons = pd.read_parquet(PROCESSED / "observed_addon_prices.parquet")
     overall = overall.merge(addon_validation(addons, restaurants), on="locality_name", how="left")
     overall = overall.merge(localities[["locality_id", "latitude", "longitude"]], on="locality_id", how="left")
-    overall["median_estimated_main"] = 0.35 * overall["median_cost_for_two"]
-    overall["median_estimated_beverage"] = 0.15 * overall["median_cost_for_two"]
-    overall.to_parquet(PROCESSED / "gpi_locality.parquet", index=False)
 
     token_counts = (
         restaurants.dropna(subset=["cost_for_two"])["canonical_cuisines"]
@@ -100,6 +131,38 @@ def main() -> None:
     )
     cell_cuisines = token_counts[token_counts >= MIN_CELL_CUISINE].index.tolist()
     cells = cuisine_cells(restaurants, cuisines=cell_cuisines)
+
+    # The 2026 benchmarks above use every 2026 restaurant. Localities whose restaurants all sit in a district the
+    # 2026 snapshot barely covers are then replaced by the 2021 listing's, so a district never mixes the two years.
+    for table in (priced, overall, cells):
+        table["price_year"] = CURRENT_YEAR
+    listing = pd.read_parquet(GAP_FILL) if GAP_FILL.exists() else pd.DataFrame(columns=["fills_gap", "district"])
+    gaps = sorted(listing.loc[listing["fills_gap"].astype(bool), "district"].unique())
+    stray = 0
+    if gaps:
+        placed = restaurants.assign(district=assign_district(restaurants))
+        stray = int(placed["district"].isin(gaps).sum())
+        in_gap = placed.groupby("locality_id")["district"].agg(lambda s: bool(s.isin(gaps).all()))
+        drop = set(in_gap[in_gap].index)
+        priced = priced[~priced["locality_id"].isin(drop)]
+        overall = overall[~overall["locality_id"].isin(drop)]
+        cells = cells[~cells["locality_id"].isin(drop)]
+        extra_priced, extra_overall, extra_cells = gap_fill_tables(
+            listing, gaps, set(overall["locality_name"]), cell_cuisines
+        )
+        for table in (extra_priced, extra_overall, extra_cells):
+            table["price_year"] = SNAPSHOT_YEAR
+        priced = pd.concat([priced, extra_priced], ignore_index=True)
+        overall = pd.concat([overall, extra_overall], ignore_index=True)
+        cells = pd.concat([cells, extra_cells], ignore_index=True)
+
+    priced["estimated_main_price"] = (0.35 * priced["cost_for_two"]).round(2)
+    priced["estimated_beverage_price"] = (0.15 * priced["cost_for_two"]).round(2)
+    overall["median_estimated_main"] = 0.35 * overall["median_cost_for_two"]
+    overall["median_estimated_beverage"] = 0.15 * overall["median_cost_for_two"]
+    overall = overall.sort_values("restaurants", ascending=False).reset_index(drop=True)
+    priced.to_parquet(PROCESSED / "gpi_restaurants.parquet", index=False)
+    overall.to_parquet(PROCESSED / "gpi_locality.parquet", index=False)
     cells.to_parquet(PROCESSED / "gpi_cells.parquet", index=False)
 
     shown = overall[overall["reliability"] != "suppressed"]
@@ -155,6 +218,33 @@ def main() -> None:
         f"- Cells: {len(cells):,}. Reliable: {(cells['reliability'] == 'reliable').sum()}. "
         f"Low: {(cells['reliability'] == 'low').sum()}. Suppressed: {(cells['reliability'] == 'suppressed').sum()}.",
         "",
+    ]
+    if gaps:
+        pairs = same_restaurant_costs(restaurants, listing)
+        lift = float((pairs["cost_for_two_2026"] / pairs["cost_for_two_2021"]).median()) - 1
+        report += [
+            "## Districts filled from the 2021 listing",
+            "",
+            f"The 2026 snapshot has fewer than 10 restaurants in {', '.join(gaps)}. For localities in those districts "
+            f"the index comes from the {SNAPSHOT_YEAR} listing (`data/processed/restaurants_2021.parquet`), "
+            f"{int((priced['price_year'] == SNAPSHOT_YEAR).sum())} restaurants. Rules:",
+            "",
+            "- A district uses one year only. The 2026 snapshot has "
+            f"{stray} restaurants inside these districts; the Food Map ignores them for district figures. In the "
+            "index tables a 2026 locality keeps all its restaurants, because localities are Zomato labels, not "
+            "districts (a label such as Safdarjung also covers restaurants in other districts). The 2026 Delhi "
+            "benchmarks use every 2026 restaurant, so no 2026 number changes.",
+            f"- Each {SNAPSHOT_YEAR} restaurant is compared with the Delhi median of the {SNAPSHOT_YEAR} listing "
+            f"(all {len(listing):,} of its Delhi restaurants), never with a 2026 median. The index is therefore "
+            f"comparable across the two years; rupee levels are not: {SNAPSHOT_YEAR} medians are in {SNAPSHOT_YEAR} "
+            f"rupees. Where both years list the same restaurant (matched on its Zomato URL, {len(pairs)} restaurants), "
+            f"the 2026 cost for two is a median {lift:.0%} higher than the 2021 one.",
+            f"- The {SNAPSHOT_YEAR} listing only contains restaurants rated 3.9 or higher for dining, so it leans "
+            "toward well-liked places. It has no menus, so estimated dish prices here are cost-for-two shares only.",
+            "- A locality label used in two districts is split by district, for example `Rohini (North)`.",
+            "",
+        ]
+    report += [
         "## Robustness",
         "",
         f"- Hedonic check (log cost for two on locality and primary-cuisine dummies): Spearman ρ with the overall GPI = "

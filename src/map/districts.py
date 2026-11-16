@@ -105,6 +105,32 @@ def district_profile(restaurants: pd.DataFrame, dishes: pd.DataFrame, district_n
     }
 
 
+UNTYPED = "Restaurant (type not listed)"  # label scripts/build_overture_places.py gives a plain "restaurant" record
+
+
+def listing_profile(listings: pd.DataFrame, district_name: str, limit: int = 10) -> dict:
+    """Overture Maps listings for one district: how many, how dense, and what kinds of places.
+
+    Listings carry a name, a category, a location and a confidence. They carry no rating, price or menu.
+    """
+    places = listings[listings["district"] == district_name] if not listings.empty else listings
+    area = next(record["area_km2"] for record in district_records() if record["name"] == district_name)
+    count = int(len(places))
+    typed = places[places["label"] != UNTYPED] if count else places
+    types = (
+        typed["label"].value_counts().head(limit).rename_axis("Type").reset_index(name="Places") if len(typed) else
+        pd.DataFrame(columns=["Type", "Places"])
+    )
+    return {
+        "count": count,
+        "area_km2": area,
+        "per_km2": count / area if area else 0.0,
+        "types": types,
+        "untyped_share": float((places["label"] == UNTYPED).mean()) if count else 0.0,
+        "places": places.sort_values(["confidence", "name"], ascending=[False, True]) if count else places,
+    }
+
+
 def _area_km2(geometry) -> float:
     """Polygon area in square kilometres at Delhi's latitude."""
     return float(geometry.area) * (111.32**2) * math.cos(math.radians(28.6139))

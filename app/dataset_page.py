@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from ui import CHART, cuisine_counts, load_tables
+from ui import ACCENT, CHART, SECONDARY, cuisine_counts, load_tables
 
 
 def render_dataset() -> None:
@@ -86,7 +86,7 @@ def _cuisine_chart(cuisine_chart: pd.DataFrame, column) -> None:
             x="Restaurants",
             y="Cuisine",
             orientation="h",
-            color_discrete_sequence=["#9A3412"],
+            color_discrete_sequence=[ACCENT],
         )
         figure.update_layout(
             yaxis={"categoryorder": "total ascending"},
@@ -109,7 +109,7 @@ def _cost_chart(filtered_restaurants: pd.DataFrame, column) -> None:
             costs,
             nbins=20,
             labels={"value": "Cost for two (₹)"},
-            color_discrete_sequence=["#1F4E46"],
+            color_discrete_sequence=[SECONDARY],
         )
         figure.update_layout(
             margin={"l": 10, "r": 10, "t": 10, "b": 10},
@@ -138,7 +138,7 @@ def _locality_chart(filtered_restaurants: pd.DataFrame) -> None:
         x="locality_name",
         y="Restaurants",
         labels={"locality_name": "Locality"},
-        color_discrete_sequence=["#9A3412"],
+        color_discrete_sequence=[ACCENT],
     )
     figure.update_layout(
         margin={"l": 10, "r": 10, "t": 10, "b": 10},

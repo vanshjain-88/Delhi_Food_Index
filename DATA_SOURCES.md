@@ -17,11 +17,34 @@
 - What it is: outlines of the eleven revenue districts shown on the Delhi government district map (North, North West, West, South West, Central, New Delhi, South, South East, East, North East, Shahdara)
 - Access: Overpass attic at 1 June 2018 for ten districts. The South Delhi relation did not download, so South is the current OSM South Delhi polygon with the other ten removed
 - File: `data/geo/delhi_districts.geojson`
-- This is not a shapefile from delhi.gov.in. The government poster was the reference for which districts to draw. Restaurant locations still come only from the Kaggle snapshot
+- This is not a shapefile from delhi.gov.in. The government poster was the reference for which districts to draw. Restaurant locations come from the Kaggle snapshot and from Overture Maps
+
+## Zomato Restaurants in Delhi NCR (2021)
+
+- Source name: Zomato Restaurants in Delhi NCR
+- Publisher: Kaggle user `aestheteaman01`
+- URL: https://www.kaggle.com/datasets/aestheteaman01/zomato-restaurants-in-delhi-ncr
+- License: CC0-1.0. Last updated on Kaggle 2021-08-30; the collection date is not stated, so the table says 2021.
+- Access method: Kaggle API download. Nothing is scraped. The raw CSV (`data/raw/zomato_2021/DelhiNCR Restaurants.csv`) carries restaurant phone numbers, so it is not committed; `scripts/build_gap_fill.py` says how to download it. A manifest is committed in the same folder.
+- Fields used: restaurant name, cuisines, cost for two, locality, delivery rating and rating count, Zomato URL, address, latitude and longitude. Phone numbers, dining ratings and the two "known for" fields are not used.
+- Why: the 2026 snapshot has fewer than 10 restaurants in North (0), South West (0), North East (2) and South (3). This file has a cost for two and a rating for restaurants in every district.
+- How it is used (`scripts/build_gap_fill.py`, `src/ingestion/gap_fill.py`): rows are assigned to districts by point in polygon (NCR rows outside the eleven districts are dropped, leaving 1,188). The 307 restaurants in the four thin districts fill them. In a filled district every number comes from 2021; nothing is averaged with 2026.
+- Limitations: the prices are 2021 rupees. On the 106 restaurants both files list (matched on the Zomato URL, never the name) the 2026 cost for two is a median 17% higher. The file only contains restaurants with a dining rating of 3.9 or more, so it leans toward well-liked places. It has no menus, so dish prices, common mains and What Drives Price? stay 2026-only. A missing delivery rating stays missing (53 of the 307).
+
+## Overture Maps Places
+
+- Source: Overture Maps Foundation, places theme, release 2026-10-21.0 (https://overturemaps.org)
+- Why: the Zomato snapshot covers central Delhi only. Overture lists places in every district, which fixes the empty and thin districts on the Food Map.
+- Access: DuckDB reads the public Parquet files in `s3://overturemaps-us-west-2/release/<release>/theme=places/type=place/`. Nothing is scraped. Script: `scripts/build_overture_places.py`.
+- Filter: base category restaurant, casual eatery, fast-food restaurant, cafe or coffee shop; Overture's existence confidence of 0.5 or more; a name; not an internet cafe; not marked closed; inside one of the eleven district polygons. Gurugram, Noida, Faridabad and other NCR points are dropped by the polygon test. 10,310 places remain.
+- What it gives: name, category, location, confidence, source datasets. **No ratings, no cost for two, no prices, no menus.** Those are not estimated.
+- Licenses: the records come from Meta, Microsoft, Foursquare, AllThePlaces and others. The source licenses in the data are CDLA-Permissive-2.0, Apache-2.0 and CC0-1.0. Overture asks for attribution: "Overture Maps Foundation". The `source_datasets` and `source_licenses` columns keep the per-record provenance.
+- Limitations: a place registry is not a census. Categories are coarse (about a fifth are only "restaurant"), some records are stale or duplicated, and the confidence score is Overture's, not ours. The Zomato and Overture tables are kept apart and never merged on name.
+- File: `data/processed/overture_places.parquet`
 
 ## Not used in this phase
 
-Overture Maps Places, data.gov.in commodity prices, and Agmarknet are part of the approved architecture and are not collected yet. OpenStreetMap is used for district outlines only, not for restaurant locations.
+data.gov.in commodity prices and Agmarknet are part of the approved architecture and are not collected yet. OpenStreetMap is used for district outlines only, not for restaurant locations.
 
 ## Derived in this project (no new external source)
 
