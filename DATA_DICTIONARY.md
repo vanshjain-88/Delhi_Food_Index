@@ -104,7 +104,7 @@ Null stays null. The pipeline does not invent ratings, vote counts, coordinates,
 
 ## Fields that are weak
 
-- Observed dish price is unavailable in this source.
+- Observed dish price is unavailable in this source. The only real item prices are the 3,753 add-on prices in `observed_addon_prices`, which are for items sold as add-ons and can be discounted.
 - Hauz Khas has one restaurant under that locality label, so that label cannot support a locality statistic.
 - `cuisine` on a menu row describes the restaurant, not the dish.
 - Locality latitude and longitude are restaurant averages, not official boundaries.

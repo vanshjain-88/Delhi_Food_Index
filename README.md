@@ -24,6 +24,12 @@ Cost for two is observed. Dish prices in the preview are estimates: a main is 35
 
 The all-India download was deleted after the Delhi filter was checked. Field definitions are in `DATA_DICTIONARY.md`.
 
+## Deliverable 2 — Food Map
+
+A plain white map of the eleven revenue districts on the Delhi government district map. Hover a district for its restaurant count, density, median rating and cost for two. Click a district, or pick it in the sidebar, to colour it by restaurants per square kilometre and open its profile. District outlines are OpenStreetMap (ODbL), in `data/geo/delhi_districts.geojson`.
+
+The Zomato snapshot only covers central Delhi, so some districts are thin: North 0, South West 0, North East 2, South 3, Shahdara 19, North West 26. The Food Map says so, and the Price Index suppresses localities with fewer than 5 restaurants.
+
 ## Deliverable 3 — Gastronomic Price Index
 
 How expensive each locality is relative to Delhi, comparing each restaurant with Delhi restaurants of the same
@@ -93,12 +99,8 @@ PYTHONPATH=src .venv/bin/python -m pytest -q
 
 A Kaggle token is only needed to download the source again. Put it in `.env` as `KAGGLE_API_TOKEN`. That file is not committed.
 
-## Deliverable 2 — Food map
+## Not built yet
 
-A plain white map of the eleven revenue districts on the Delhi government district map. Click a district to colour it by restaurants per square kilometre and open its profile. North and South West have none. District outlines are OpenStreetMap, in `data/geo/delhi_districts.geojson`.
-
-## Later deliverables
-
-Not built yet: a Home page, OpenStreetMap listings for thin districts (`scripts/fetch_osm_restaurants.py` has never
-completed), and raw-material price integration (commodity price sources such as data.gov.in and Agmarknet are still
-uncollected).
+- A Home page.
+- OpenStreetMap listings for thin districts. `scripts/fetch_osm_restaurants.py` has never completed (Overpass returned 502 errors), so no OSM data is in the repo.
+- Raw-material price integration. Commodity price sources such as data.gov.in and Agmarknet are still uncollected.

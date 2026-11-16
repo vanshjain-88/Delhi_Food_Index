@@ -155,7 +155,8 @@ def _menu_table(filtered_dishes: pd.DataFrame, filtered_restaurants: pd.DataFram
     st.caption(
         "Estimated price is that dish's share of the restaurant's cost for two: "
         "main 35%, starter 18%, other food 20%, drink 15%, dessert 12%, bread or side 8%. "
-        "It is not a listed menu price. This snapshot has no observed item prices."
+        "It is not a listed menu price. The snapshot lists no dish prices; the only real item prices are "
+        "3,753 add-on prices at 417 restaurants, used as a check on the What Drives Price? page."
     )
     preview = filtered_dishes[
         [
