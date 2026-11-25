@@ -1,6 +1,76 @@
 # Delhi Food Index
 
-University project on Delhi restaurants, menus, and prices. The app is **Delhi Gastronomic Intelligence**. Deliverables are added one at a time.
+University project for the Computational Gastronomy course on Delhi restaurants, menus, and prices. The web app is **Delhi Gastronomic Intelligence**. All four deliverables are built:
+
+1. **Dataset** — a structured Delhi menu dataset (restaurants, menu items, localities).
+2. **Food Map** — an interactive map of Delhi's eleven revenue districts.
+3. **Price Index** — a cuisine-adjusted Gastronomic Price Index by locality.
+4. **What Drives Price?** — what goes with higher prices for 20 popular dishes.
+
+Dish prices are not listed in the source, so they are **estimated** from each restaurant's observed cost for two and labelled as estimates throughout. Results are associations, not causal effects.
+
+## Running the app
+
+Requires Python 3.10–3.12. The processed data is committed, so nothing needs rebuilding.
+
+Windows (PowerShell):
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1          # if blocked: Set-ExecutionPolicy -Scope Process Bypass
+pip install -r requirements.txt
+streamlit run app/main.py
+```
+
+macOS / Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run app/main.py
+```
+
+Open http://localhost:8501. The app opens on a **Home** page with a card for each deliverable. Every other page has a
+**← Home** button and a switcher for the four sections: **Dataset**, **Food Map** (the eleven Delhi districts),
+**Price Index** and **What Drives Price?**. All maps use a plain white background with the district outlines, so they work offline.
+
+Tests (69: unit tests plus page smoke tests that open every section and click through every cuisine and dish):
+
+```bash
+PYTHONPATH=src python -m pytest -q                 # macOS / Linux
+$env:PYTHONPATH="src"; python -m pytest -q         # Windows PowerShell
+```
+
+Rebuilding the results is optional. In order:
+
+```bash
+python scripts/build_delhi_dataset.py     # Deliverable 1 tables
+python scripts/build_addon_prices.py      # observed add-on prices
+python scripts/build_overture_places.py   # Overture listings for all districts (needs network)
+python scripts/build_gap_fill.py          # 2021 ratings and cost for the thin districts (needs the raw CSV, see script)
+python scripts/build_price_index.py       # Deliverable 3 (seconds)
+python scripts/build_price_drivers.py     # Deliverable 4 (about 2 minutes)
+```
+
+A Kaggle token is only needed to download the sources again. Put it in `.env` as `KAGGLE_API_TOKEN`. That file is not committed.
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `app/` | Streamlit app: `main.py` (entry point), one `*_page.py` per section, `ui.py` (theme and shared helpers) |
+| `src/ingestion/` | Menu parsing, cuisine canonicalisation, price-role weights, 2021 gap fill |
+| `src/map/` | District polygons and district assignment |
+| `src/pricing/` | Price index (`gpi.py`) and observed add-on prices (`addon_prices.py`) |
+| `src/modeling/`, `src/nlp/` | Dish matching, price-driver models, ingredient and technique extraction |
+| `scripts/` | Build scripts that produce everything in `data/processed/` |
+| `data/raw/`, `data/processed/`, `data/geo/` | Source extracts, processed tables, district outlines |
+| `reports/` | Price index report, price drivers report, extraction audit, Phase 1 data-quality report |
+| `tests/` | Unit and app tests |
+
+Documentation: `METHODOLOGY.md` (all methods and assumptions), `DATA_DICTIONARY.md` (every table and field),
+`DATA_SOURCES.md` (sources, licences, limitations), `HANDOFF.md` (project status and working rules).
 
 ## Deliverable 1 — Delhi menu dataset
 
@@ -63,7 +133,7 @@ cuisine. 100 = Delhi benchmark.
 | Robustness | Spearman ρ 0.90 with a hedonic regression index, 0.59 with an index built from observed add-on prices |
 
 The page map shows all of Delhi by default (with a "Zoom to data" switch). Localities with too few restaurants for an
-index stay on it as grey dots, so thin areas are visible instead of silently dropped. North, South West, South and North East localities use 2021 prices, each compared with the 2021 Delhi median; the table has a "Prices" column with the year. The cuisine × locality grid has a
+index stay on it as grey dots, so thin areas are visible instead of silently dropped. Localities in North, South West, South and North East use 2021 prices, each compared with the 2021 Delhi median; the table has a "Prices" column with the year. The cuisine × locality grid has a
 slider for how many cuisines to show.
 
 Files: `data/processed/gpi_locality.parquet`, `gpi_cells.parquet`, `gpi_restaurants.parquet`.
@@ -93,37 +163,6 @@ Files: `data/processed/dish_observations.parquet`, `dish_features.parquet`, `dis
 `addon_price_model.parquet`. Report: `reports/price_drivers_report.md`.
 
 Raw-material prices are not integrated yet.
-
-### Preview
-
-```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/streamlit run app/main.py
-```
-
-Open http://127.0.0.1:8501. The app opens on a **Home** page with a card for each deliverable. Every other page has a
-**← Home** button and a switcher for the four sections: **Dataset**, **Food Map** (the eleven Delhi districts),
-**Price Index** and **What Drives Price?**. All maps use a plain white background with the district outlines, so they work offline.
-
-Rebuild everything in order:
-
-```bash
-.venv/bin/python scripts/build_delhi_dataset.py   # Deliverable 1 tables
-.venv/bin/python scripts/build_addon_prices.py    # observed add-on prices
-.venv/bin/python scripts/build_overture_places.py # Overture listings for all districts (needs network)
-.venv/bin/python scripts/build_gap_fill.py        # 2021 ratings and cost for the thin districts (needs the raw CSV, see script)
-.venv/bin/python scripts/build_price_index.py     # Deliverable 3 (seconds)
-.venv/bin/python scripts/build_price_drivers.py   # Deliverable 4 (about 2 minutes)
-```
-
-Tests (unit tests plus page smoke tests that click through every cuisine and dish):
-
-```bash
-PYTHONPATH=src .venv/bin/python -m pytest -q
-```
-
-A Kaggle token is only needed to download the source again. Put it in `.env` as `KAGGLE_API_TOKEN`. That file is not committed.
 
 ## Not built yet
 
